@@ -59,8 +59,26 @@ Use `--split train`, `--split dev`, or `--split eval` to select a split, and
 python backend/scripts/prepare_data.py --split train --limit 100
 ```
 
-The current endpoint reports acoustic descriptors only; it does not perform a
-deepfake classification.
+## Train the Week 2 CNN baseline
+
+Install the updated backend requirements, generate the feature CSV, then train
+from the repository root:
+
+```powershell
+python -m pip install -r backend/requirements.txt
+python backend/scripts/train_baseline_cnn.py --epochs 15
+```
+
+The baseline trains on the `train` split and selects its checkpoint using the
+`dev` split. It does not use the `eval` split. The best model is saved to
+`backend/data/models/rir_baseline_cnn.pt`, with validation metrics in the
+adjacent `.metrics.json` file. Metrics include accuracy and spoof precision,
+recall, and F1. Tune training with `--batch-size`, `--learning-rate`, and
+`--seed`.
+
+This is an experimental baseline, not a validated deepfake detector. The
+current API still reports acoustic features only and does not serve model
+predictions.
 
 Run the backend unit tests from the `backend` directory:
 
