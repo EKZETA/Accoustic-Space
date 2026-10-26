@@ -36,6 +36,29 @@ impulse responses are useful for later controlled reverberation experiments;
 they are not treated as ground-truth room responses for arbitrary uploaded
 speech recordings.
 
+## Extract batch features with an RIR
+
+After creating the ASVspoof manifest, run from the repository root:
+
+```powershell
+python backend/scripts/prepare_data.py
+```
+
+The script applies the selected RIR to each audio file in the manifest, then
+writes one row per processed recording to
+`backend/data/rir_extracted_features.csv`. Rows include the mean spectral
+centroid, mean spectral rolloff, and the 64-by-128 mel spectrogram as compact
+JSON in `spectrogram_values_db`. Failed recordings are reported and skipped;
+the command exits with a non-zero status if any entry fails.
+
+Use `--split train`, `--split dev`, or `--split eval` to select a split, and
+`--limit 100` for a bounded test run. Paths can be overridden with
+`--manifest`, `--dataset-root`, `--rir`, and `--output`. For example:
+
+```powershell
+python backend/scripts/prepare_data.py --split train --limit 100
+```
+
 The current endpoint reports acoustic descriptors only; it does not perform a
 deepfake classification.
 

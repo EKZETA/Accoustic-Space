@@ -15,6 +15,14 @@ class AudioProcessor:
             sr=self.target_sr,
             mono=True,
         )
+        return self.extract_features_from_audio(audio, sample_rate)
+
+    def extract_features_from_audio(
+        self,
+        audio: np.ndarray,
+        sample_rate: int,
+    ) -> dict[str, Any]:
+        """Extract features from mono audio already loaded at the target rate."""
         if audio.size == 0 or not np.isfinite(audio).all():
             raise ValueError("The audio file is empty or contains invalid samples.")
 
