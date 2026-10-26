@@ -59,26 +59,36 @@ Use `--split train`, `--split dev`, or `--split eval` to select a split, and
 python backend/scripts/prepare_data.py --split train --limit 100
 ```
 
-## Train the Week 2 CNN baseline
+## Train and evaluate the Week 2 CNN baseline
 
-Install the updated backend requirements, generate the feature CSV, then train
-from the repository root:
+Install the updated backend requirements, prepare a class-balanced sample, then
+extract features and train from the repository root:
 
 ```powershell
 python -m pip install -r backend/requirements.txt
-python backend/scripts/train_baseline_cnn.py --epochs 15
+python backend/scripts/sample_balanced_manifest.py --samples-per-class 1000 --seed 42
+python backend/scripts/prepare_data.py `
+  --manifest backend/data/manifests/asvspoof2019_la_balanced_1000_seed42.csv `
+  --output backend/data/rir_extracted_features_balanced_1000_seed42.csv
+python backend/scripts/train_baseline_cnn.py `
+  --features backend/data/rir_extracted_features_balanced_1000_seed42.csv `
+  --model backend/data/models/rir_baseline_cnn_balanced_1000_seed42.pt `
+  --epochs 15
 ```
 
-The baseline trains on the `train` split and selects its checkpoint using the
-`dev` split. It does not use the `eval` split. The best model is saved to
-`backend/data/models/rir_baseline_cnn.pt`, with validation metrics in the
-adjacent `.metrics.json` file. Metrics include accuracy and spoof precision,
-recall, and F1. Tune training with `--batch-size`, `--learning-rate`, and
-`--seed`.
+The balanced manifest samples 1,000 recordings per label (`bonafide` and
+`spoof`) independently from each of the `train`, `dev`, and `eval` splits.
+Training uses only `train`; the best checkpoint is selected by `dev` loss, and
+the selected checkpoint is evaluated once on the held-out `eval` split. Metrics
+include accuracy, balanced accuracy, per-class precision/recall/F1, and a
+confusion matrix. Results are stored next to the model in
+`backend/data/models/rir_baseline_cnn_balanced_1000_seed42.metrics.json`. Tune
+training with `--batch-size`, `--learning-rate`, and `--seed`.
 
-This is an experimental baseline, not a validated deepfake detector. The
-current API still reports acoustic features only and does not serve model
-predictions.
+This is an experimental baseline, not a validated deepfake detector. Only
+report the held-out `eval` metrics after the model and hyperparameters have
+been selected using `dev`. The current API still reports acoustic features
+only and does not serve model predictions.
 
 Run the backend unit tests from the `backend` directory:
 

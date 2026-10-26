@@ -64,9 +64,12 @@ class BaselineCNNTests(unittest.TestCase):
 
         self.assertEqual(metrics["samples"], 4)
         self.assertEqual(metrics["accuracy"], 0.5)
+        self.assertEqual(metrics["balanced_accuracy"], 0.5)
+        self.assertEqual(metrics["bonafide_recall"], 0.5)
         self.assertEqual(metrics["spoof_precision"], 0.5)
         self.assertEqual(metrics["spoof_recall"], 0.5)
         self.assertEqual(metrics["spoof_f1"], 0.5)
+        self.assertEqual(metrics["confusion_matrix"], [[1, 1], [1, 1]])
 
     def test_trains_and_saves_best_validation_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -78,7 +81,7 @@ class BaselineCNNTests(unittest.TestCase):
                     fieldnames=["split", "label", "spectrogram_values_db"],
                 )
                 writer.writeheader()
-                for split in ("train", "dev"):
+                for split in ("train", "dev", "eval"):
                     for label, value in (("bonafide", -70), ("spoof", -5)):
                         writer.writerow(
                             {
@@ -107,7 +110,10 @@ class BaselineCNNTests(unittest.TestCase):
             self.assertTrue(model_path.with_suffix(".metrics.json").is_file())
 
         self.assertEqual(result["best_epoch"], 1)
+        self.assertEqual(result["evaluation_samples"], 2)
+        self.assertEqual(result["evaluation_metrics"]["samples"], 2)
         self.assertIn("state_dict", checkpoint)
+        self.assertIn("evaluation_metrics", checkpoint)
 
 
 if __name__ == "__main__":

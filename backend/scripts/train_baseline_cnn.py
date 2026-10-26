@@ -106,7 +106,13 @@ def calculate_metrics(
     true_positive = int(np.sum((predictions == 1) & (labels == 1)))
     false_positive = int(np.sum((predictions == 1) & (labels == 0)))
     false_negative = int(np.sum((predictions == 0) & (labels == 1)))
+    true_negative = int(np.sum((predictions == 0) & (labels == 0)))
     accuracy = float(np.mean(predictions == labels))
+    bonafide_recall = (
+        true_negative / (true_negative + false_positive)
+        if true_negative + false_positive
+        else 0.0
+    )
     precision = (
         true_positive / (true_positive + false_positive)
         if true_positive + false_positive
@@ -122,12 +128,31 @@ def calculate_metrics(
         if precision + recall
         else 0.0
     )
+    bonafide_precision = (
+        true_negative / (true_negative + false_negative)
+        if true_negative + false_negative
+        else 0.0
+    )
+    bonafide_f1 = (
+        2 * bonafide_precision * bonafide_recall
+        / (bonafide_precision + bonafide_recall)
+        if bonafide_precision + bonafide_recall
+        else 0.0
+    )
     return {
         "samples": int(labels.size),
         "accuracy": accuracy,
+        "balanced_accuracy": (bonafide_recall + recall) / 2,
+        "bonafide_precision": bonafide_precision,
+        "bonafide_recall": bonafide_recall,
+        "bonafide_f1": bonafide_f1,
         "spoof_precision": precision,
         "spoof_recall": recall,
         "spoof_f1": f1,
+        "confusion_matrix": [
+            [true_negative, false_positive],
+            [false_negative, true_positive],
+        ],
     }
 
 
@@ -173,10 +198,13 @@ def train(
 
     train_spectrograms, train_labels = load_split(feature_csv, "train")
     validation_spectrograms, validation_labels = load_split(feature_csv, "dev")
+    evaluation_spectrograms, evaluation_labels = load_split(feature_csv, "eval")
     if np.unique(train_labels).size != len(LABEL_TO_INDEX):
         raise ValueError("The train split must contain both bonafide and spoof labels.")
     if np.unique(validation_labels).size != len(LABEL_TO_INDEX):
         raise ValueError("The dev split must contain both bonafide and spoof labels.")
+    if np.unique(evaluation_labels).size != len(LABEL_TO_INDEX):
+        raise ValueError("The eval split must contain both bonafide and spoof labels.")
 
     train_dataset = TensorDataset(
         torch.from_numpy(train_spectrograms),
@@ -186,6 +214,10 @@ def train(
         torch.from_numpy(validation_spectrograms),
         torch.from_numpy(validation_labels),
     )
+    evaluation_dataset = TensorDataset(
+        torch.from_numpy(evaluation_spectrograms),
+        torch.from_numpy(evaluation_labels),
+    )
     generator = torch.Generator().manual_seed(seed)
     train_loader = DataLoader(
         train_dataset,
@@ -194,12 +226,14 @@ def train(
         generator=generator,
     )
     validation_loader = DataLoader(validation_dataset, batch_size=batch_size)
+    evaluation_loader = DataLoader(evaluation_dataset, batch_size=batch_size)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = SpectrogramCNN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_function = nn.CrossEntropyLoss()
     best_validation_loss = float("inf")
     best_result: dict[str, Any] = {}
+    best_state_dict: dict[str, torch.Tensor] | None = None
 
     model_path = Path(model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
@@ -233,6 +267,7 @@ def train(
                 "validation_metrics": validation_metrics,
                 "train_samples": int(train_labels.size),
                 "validation_samples": int(validation_labels.size),
+                "evaluation_samples": int(evaluation_labels.size),
                 "classes": LABEL_TO_INDEX,
                 "model_config": {
                     "input_shape": list(SPECTROGRAM_SHAPE),
@@ -240,24 +275,37 @@ def train(
                 },
                 "seed": seed,
             }
-            torch.save(
-                {
-                    **best_result,
-                    "state_dict": {
-                        name: tensor.detach().cpu()
-                        for name, tensor in model.state_dict().items()
-                    },
-                },
-                model_path,
-            )
+            best_state_dict = {
+                name: tensor.detach().cpu().clone()
+                for name, tensor in model.state_dict().items()
+            }
 
+    if best_state_dict is None:
+        raise RuntimeError("Training completed without producing a checkpoint.")
+
+    model.load_state_dict(best_state_dict)
+    evaluation_loss, evaluation_metrics = evaluate(
+        model,
+        evaluation_loader,
+        loss_function,
+        device,
+    )
+    best_result["evaluation_loss"] = evaluation_loss
+    best_result["evaluation_metrics"] = evaluation_metrics
+    torch.save(
+        {
+            **best_result,
+            "state_dict": best_state_dict,
+        },
+        model_path,
+    )
     metrics_path = model_path.with_suffix(".metrics.json")
     metrics_path.write_text(
         json.dumps(best_result, indent=2) + "\n",
         encoding="utf-8",
     )
     print(f"Best model saved to {model_path}")
-    print(f"Validation metrics saved to {metrics_path}")
+    print(f"Validation and held-out eval metrics saved to {metrics_path}")
     return best_result
 
 
@@ -270,7 +318,10 @@ def _positive_int(value: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Train a CNN baseline on RIR mel-spectrogram features."
+        description=(
+            "Train a CNN baseline on train features, select by dev loss, "
+            "and report held-out eval metrics."
+        )
     )
     parser.add_argument(
         "--features",
