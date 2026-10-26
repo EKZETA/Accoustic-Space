@@ -1,91 +1,164 @@
-import React, { useState } from 'react';
-import { Upload, FileAudio, AlertCircle } from 'lucide-react';
+import { useRef, useState } from 'react'
+import { AlertCircle, AudioLines, FileAudio, LoaderCircle, Upload } from 'lucide-react'
+import type { AnalysisData } from '../types'
 
 interface AudioUploadProps {
-  onAnalysisComplete: (data: any) => void;
+  onAnalysisComplete: (filename: string, data: AnalysisData) => void
 }
 
-export const AudioUpload: React.FC<AudioUploadProps> = ({ onAnalysisComplete }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const MAX_FILE_SIZE = 25 * 1024 * 1024
+const SUPPORTED_EXTENSIONS = ['.wav', '.mp3', '.flac']
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-      setError(null);
+export function AudioUpload({ onAnalysisComplete }: AudioUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [loading, setLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  const chooseFile = (file?: File) => {
+    if (!file) return
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+
+    if (!SUPPORTED_EXTENSIONS.includes(extension)) {
+      setSelectedFile(null)
+      setError('Pilih file WAV, MP3, atau FLAC.')
+      return
     }
-  };
+    if (file.size > MAX_FILE_SIZE) {
+      setSelectedFile(null)
+      setError('Ukuran file maksimum adalah 25 MB.')
+      return
+    }
+
+    setSelectedFile(file)
+    setError(null)
+  }
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || loading) return
 
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    setLoading(true)
+    setError(null)
+    const formData = new FormData()
+    formData.append('file', selectedFile)
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/extract-features', {
+      const response = await fetch(`${API_BASE_URL}/api/v1/extract-features`, {
         method: 'POST',
         body: formData,
-      });
+      })
+      const payload = await response.json()
 
       if (!response.ok) {
-        throw new Error('Failed to process the audio file.');
+        throw new Error(payload.detail ?? 'Audio gagal diproses.')
       }
 
-      const result = await response.json();
-      onAnalysisComplete(result.data);
-    } catch (err: any) {
-      setError(err.message || 'A system error occurred.');
+      onAnalysisComplete(payload.filename, payload.data as AnalysisData)
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : 'Tidak dapat menghubungi AcousticSpace API.',
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDragging(false)
+    chooseFile(event.dataTransfer.files[0])
+  }
 
   return (
-    <div style={{ border: '2px dashed #ccc', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
-      <Upload size={48} style={{ color: '#0070f3', marginBottom: '10px' }} />
-      <h3>Upload Forensic Audio File</h3>
-      <p style={{ fontSize: '12px', color: '#666' }}>Supported formats: WAV, MP3, FLAC</p>
-      
-      <input 
-        type="file" 
-        accept="audio/*" 
-        onChange={handleFileChange} 
-        style={{ margin: '15px 0', display: 'block', marginLeft: 'auto', marginRight: 'auto' }} 
-      />
-
-      {selectedFile && (
-        <div style={{ marginBottom: '15px' }}>
-          <FileAudio size={16} style={{ display: 'inline', marginRight: '5px' }} /> 
-          <span>{selectedFile.name}</span>
+    <section className="upload-card" aria-labelledby="upload-title">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">ANALYSIS INPUT</span>
+          <h2 id="upload-title">Upload audio sample</h2>
         </div>
-      )}
+        <span className="file-limit">MAX 25 MB</span>
+      </div>
 
-      <button 
-        onClick={handleUpload} 
-        disabled={!selectedFile || loading}
-        style={{
-          backgroundColor: selectedFile && !loading ? '#0070f3' : '#ccc',
-          color: '#fff',
-          border: 'none',
-          padding: '10px 20px',
-          borderRadius: '4px',
-          cursor: selectedFile && !loading ? 'pointer' : 'not-allowed'
+      <div
+        className={`drop-zone${isDragging ? ' is-dragging' : ''}`}
+        onDragEnter={(event) => {
+          event.preventDefault()
+          setIsDragging(true)
         }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setIsDragging(false)
+          }
+        }}
+        onDrop={handleDrop}
       >
-        {loading ? 'Extracting Acoustic Features...' : 'Process Audio'}
-      </button>
+        <input
+          ref={inputRef}
+          className="visually-hidden"
+          id="audio-file"
+          type="file"
+          accept=".wav,.mp3,.flac,audio/wav,audio/mpeg,audio/flac"
+          onChange={(event) => chooseFile(event.target.files?.[0])}
+        />
+        <div className="upload-icon">
+          <Upload size={21} strokeWidth={1.8} />
+        </div>
+        {selectedFile ? (
+          <div className="selected-file">
+            <FileAudio size={18} />
+            <span className="selected-file-name">{selectedFile.name}</span>
+            <span className="selected-file-size">
+              {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
+            </span>
+          </div>
+        ) : (
+          <>
+            <p className="drop-title">Drop a recording here</p>
+            <p className="drop-hint">or browse your device · WAV, MP3, FLAC</p>
+          </>
+        )}
+        <button
+          className="browse-button"
+          type="button"
+          onClick={() => inputRef.current?.click()}
+        >
+          {selectedFile ? 'Choose another file' : 'Browse files'}
+        </button>
+      </div>
 
       {error && (
-        <p style={{ color: 'red', marginTop: '10px' }}>
-          <AlertCircle size={16} style={{ display: 'inline', marginRight: '5px' }} /> 
+        <p className="upload-error" role="alert">
+          <AlertCircle size={16} />
           {error}
         </p>
       )}
-    </div>
-  );
-};
+
+      <div className="upload-footer">
+        <p>
+          <AudioLines size={15} />
+          Spectrogram and acoustic indicators only
+        </p>
+        <button
+          className="analyze-button"
+          type="button"
+          onClick={handleUpload}
+          disabled={!selectedFile || loading}
+        >
+          {loading ? (
+            <>
+              <LoaderCircle className="spinner" size={17} />
+              Extracting
+            </>
+          ) : (
+            'Extract features'
+          )}
+        </button>
+      </div>
+    </section>
+  )
+}
