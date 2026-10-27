@@ -449,6 +449,52 @@
   padding-bottom: 15px;
 }
 
+.waveform-panel {
+  min-height: 190px;
+}
+
+.waveform-canvas {
+  display: block;
+  width: 100%;
+  height: 112px;
+  margin-top: 16px;
+  border: 1px solid #263437;
+  border-radius: 5px;
+  background: #0b1215;
+}
+
+.waveform-time-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 7px 1px 0;
+  color: #68777b;
+  font-size: 8px;
+}
+
+.waveform-empty {
+  height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 16px;
+  border: 1px solid #1d292d;
+  border-radius: 7px;
+  color: #47766f;
+  background: repeating-linear-gradient(
+    0deg,
+    #0e161a,
+    #0e161a 20px,
+    #10191d 21px
+  );
+}
+
+.waveform-empty p {
+  color: #738185;
+  font-size: 10px;
+}
+
 .result-tag {
   display: inline-flex;
   align-items: center;

@@ -4,6 +4,10 @@ export interface AnalysisData {
     duration_seconds: number
     total_samples: number
   }
+  waveform: {
+    amplitude_ranges: [number, number][]
+    time_bins: number
+  }
   spectrogram: {
     values_db: number[][]
     frequency_bins: number

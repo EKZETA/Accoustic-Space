@@ -22,6 +22,22 @@ class AudioProcessorTests(unittest.TestCase):
         spectrogram = result["spectrogram"]
         self.assertEqual(result["metadata"]["sample_rate"], sample_rate)
         self.assertEqual(result["metadata"]["duration_seconds"], 1.0)
+        waveform = result["waveform"]
+        self.assertEqual(waveform["time_bins"], 1_200)
+        self.assertEqual(len(waveform["amplitude_ranges"]), 1_200)
+        self.assertTrue(
+            all(
+                len(amplitude_range) == 2
+                and amplitude_range[0] <= amplitude_range[1]
+                for amplitude_range in waveform["amplitude_ranges"]
+            )
+        )
+        self.assertTrue(
+            np.isclose(min(item[0] for item in waveform["amplitude_ranges"]), -0.2)
+        )
+        self.assertTrue(
+            np.isclose(max(item[1] for item in waveform["amplitude_ranges"]), 0.2)
+        )
         self.assertEqual(spectrogram["frequency_bins"], 64)
         self.assertEqual(spectrogram["time_frames"], 128)
         self.assertEqual(len(spectrogram["values_db"]), 64)

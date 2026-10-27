@@ -54,6 +54,61 @@ function Spectrogram({ values }: { values: number[][] }) {
   )
 }
 
+function Waveform({ values }: { values: [number, number][] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    if (!canvas || !context || values.length === 0) return
+
+    const draw = () => {
+      const width = canvas.clientWidth
+      const height = canvas.clientHeight
+      const pixelRatio = window.devicePixelRatio || 1
+      canvas.width = Math.round(width * pixelRatio)
+      canvas.height = Math.round(height * pixelRatio)
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+      context.clearRect(0, 0, width, height)
+
+      const center = height / 2
+      context.strokeStyle = '#273638'
+      context.lineWidth = 1
+      context.beginPath()
+      context.moveTo(0, center)
+      context.lineTo(width, center)
+      context.stroke()
+
+      context.fillStyle = '#70d7c6'
+      values.forEach(([minimum, maximum], index) => {
+        const x = ((index + 0.5) / values.length) * width
+        const top = center - maximum * center
+        const bottom = center - minimum * center
+        context.fillRect(
+          x,
+          top,
+          Math.max(1, width / values.length),
+          Math.max(1, bottom - top),
+        )
+      })
+    }
+
+    draw()
+    const resizeObserver = new ResizeObserver(draw)
+    resizeObserver.observe(canvas)
+    return () => resizeObserver.disconnect()
+  }, [values])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="waveform-canvas"
+      role="img"
+      aria-label="Audio waveform showing minimum and maximum amplitude over time"
+    />
+  )
+}
+
 export default function App() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
   const features = analysis?.data.acoustic_features
@@ -133,6 +188,35 @@ export default function App() {
                   setAnalysis({ filename, data })
                 }
               />
+
+              <section className="panel waveform-panel" aria-labelledby="waveform-title">
+                <div className="section-heading">
+                  <div>
+                    <span className="eyebrow">TIME DOMAIN</span>
+                    <h2 id="waveform-title">Audio waveform</h2>
+                  </div>
+                  {analysis && (
+                    <span className="spectrogram-size">
+                      {analysis.data.waveform.time_bins.toLocaleString()} time bins
+                    </span>
+                  )}
+                </div>
+                {analysis ? (
+                  <>
+                    <Waveform values={analysis.data.waveform.amplitude_ranges} />
+                    <div className="waveform-time-axis">
+                      <span>0.0 s</span>
+                      <span>{(analysis.data.metadata.duration_seconds / 2).toFixed(1)} s</span>
+                      <span>{analysis.data.metadata.duration_seconds.toFixed(1)} s</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="waveform-empty">
+                    <AudioWaveform size={24} />
+                    <p>The audio waveform will appear after feature extraction.</p>
+                  </div>
+                )}
+              </section>
 
               <section className="panel metrics-panel" aria-labelledby="metrics-title">
                 <div className="section-heading">

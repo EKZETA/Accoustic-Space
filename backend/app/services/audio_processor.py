@@ -3,6 +3,8 @@ from typing import Any
 import librosa
 import numpy as np
 
+WAVEFORM_BINS = 1_200
+
 
 class AudioProcessor:
     def __init__(self, target_sr: int = 16_000) -> None:
@@ -66,6 +68,10 @@ class AudioProcessor:
                 "duration_seconds": round(duration, 2),
                 "total_samples": int(audio.size),
             },
+            "waveform": {
+                "amplitude_ranges": self._create_waveform(audio),
+                "time_bins": min(audio.size, WAVEFORM_BINS),
+            },
             "spectrogram": {
                 "values_db": mel_db.round(1).tolist(),
                 "frequency_bins": int(mel_db.shape[0]),
@@ -88,6 +94,13 @@ class AudioProcessor:
                 "or a deepfake classification."
             ),
         }
+
+    @staticmethod
+    def _create_waveform(audio: np.ndarray) -> list[list[float]]:
+        return [
+            [float(np.min(chunk)), float(np.max(chunk))]
+            for chunk in np.array_split(audio, min(audio.size, WAVEFORM_BINS))
+        ]
 
     @staticmethod
     def _resize_time_axis(spectrogram: np.ndarray, target_frames: int) -> np.ndarray:
