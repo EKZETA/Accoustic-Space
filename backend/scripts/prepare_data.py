@@ -33,7 +33,7 @@ FIELDNAMES = [
 REQUIRED_MANIFEST_COLUMNS = {"audio_path", "utterance_id"}
 
 
-def _load_and_apply_rir(
+def load_and_apply_rir(
     audio_path: Path,
     rir_path: Path,
     sample_rate: int,
@@ -60,7 +60,7 @@ def _write_feature_row(
     processor: AudioProcessor,
 ) -> None:
     audio_path = dataset_root / row["audio_path"]
-    augmented_audio = _load_and_apply_rir(
+    augmented_audio = load_and_apply_rir(
         audio_path,
         rir_path,
         processor.target_sr,

@@ -59,6 +59,33 @@ Use `--split train`, `--split dev`, or `--split eval` to select a split, and
 python backend/scripts/prepare_data.py --split train --limit 100
 ```
 
+## Validate simulated RIR effects
+
+To compare dry recordings against the same recordings convolved with known
+simulated room responses, run from the repository root:
+
+```powershell
+python backend/scripts/validate_rir_effects.py
+```
+
+By default, the experiment samples 20 train recordings per label and 4 RIRs
+from distinct rooms in each simulated small-, medium-, and large-room group.
+It writes paired feature deltas to `backend/data/rir_validation_pairs.csv`
+and room-group summaries to `backend/data/rir_validation_summary.json`.
+Room-group recognition uses wet-minus-dry feature deltas and holds out entire
+source recordings and rooms, so neither the speech nor the measured room is
+shared between its training and test sets. Crossed pairs outside these two
+disjoint groups are excluded from the recognition score. Duration deltas are
+reported but excluded from recognition to avoid using RIR tail length as a
+shortcut for room-size category. Use
+`--samples-per-label`, `--rirs-per-room-type` (at least 2), and `--seed` to
+control the reproducible experiment.
+
+This validates the measurable effect of applying known simulated RIRs and
+whether room-size groups can be distinguished in this controlled dataset. It
+does not isolate an RIR from arbitrary speech recordings or establish
+real-world room recognition.
+
 ## Train and evaluate the Week 2 CNN baseline
 
 Install the updated backend requirements, prepare a class-balanced sample, then
