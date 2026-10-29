@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import random
+import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -443,6 +444,133 @@ def validate_rir_effects(
     return summary
 
 
+def aggregate_seed_summaries(
+    summaries: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if len(summaries) < 2:
+        raise ValueError("At least two seed runs are required for aggregation.")
+
+    accuracies = [
+        float(summary["room_type_recognition"]["accuracy"])
+        for summary in summaries
+    ]
+    chance_accuracies = {
+        float(summary["room_type_recognition"]["chance_accuracy"])
+        for summary in summaries
+    }
+    if len(chance_accuracies) != 1:
+        raise ValueError("Seed runs use inconsistent chance baselines.")
+    if len(
+        {
+            (summary["samples_per_label"], summary["rirs_per_room_type"])
+            for summary in summaries
+        }
+    ) != 1:
+        raise ValueError("Seed runs use inconsistent experiment sizes.")
+
+    return {
+        "experiment": "multi-seed paired dry and simulated-RIR validation",
+        "interpretation": (
+            "Aggregate variability across independently sampled source "
+            "recordings, room impulse responses, and source/room-disjoint "
+            "recognition splits. This does not isolate an RIR from arbitrary "
+            "recorded speech."
+        ),
+        "runs": [
+            {
+                "seed": summary["seed"],
+                "accuracy": float(summary["room_type_recognition"]["accuracy"]),
+                "test_pairs": int(summary["room_type_recognition"]["test_pairs"]),
+                "confusion_matrix": summary["room_type_recognition"][
+                    "confusion_matrix"
+                ],
+            }
+            for summary in summaries
+        ],
+        "run_count": len(summaries),
+        "samples_per_label_per_run": summaries[0]["samples_per_label"],
+        "rirs_per_room_type_per_run": summaries[0]["rirs_per_room_type"],
+        "chance_accuracy": chance_accuracies.pop(),
+        "accuracy_mean": statistics.fmean(accuracies),
+        "accuracy_population_std": statistics.pstdev(accuracies),
+        "accuracy_min": min(accuracies),
+        "accuracy_max": max(accuracies),
+        "confusion_matrices": [
+            {
+                "seed": summary["seed"],
+                **summary["room_type_recognition"]["confusion_matrix"],
+            }
+            for summary in summaries
+        ],
+    }
+
+
+def validate_multiple_seeds(
+    manifest_path: Path,
+    dataset_root: Path,
+    rir_root: Path,
+    output_csv: Path,
+    summary_json: Path,
+    seeds: list[int],
+    samples_per_label: int = 20,
+    rirs_per_room_type: int = 4,
+) -> dict[str, Any]:
+    if len(seeds) < 2:
+        raise ValueError("Provide at least two distinct seeds.")
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("Seeds must be unique.")
+
+    output_csv = Path(output_csv)
+    summary_json = Path(summary_json)
+    summaries = []
+    for seed in seeds:
+        seed_csv = output_csv.with_name(
+            f"{output_csv.stem}_seed{seed}{output_csv.suffix}"
+        )
+        seed_summary = summary_json.with_name(
+            f"{summary_json.stem}_seed{seed}{summary_json.suffix}"
+        )
+        summary = validate_rir_effects(
+            manifest_path,
+            dataset_root,
+            rir_root,
+            seed_csv,
+            seed_summary,
+            samples_per_label=samples_per_label,
+            rirs_per_room_type=rirs_per_room_type,
+            seed=seed,
+        )
+        summaries.append(summary)
+        print(
+            f"seed {seed}: room-type accuracy "
+            f"{summary['room_type_recognition']['accuracy']:.3f}"
+        )
+
+    aggregate = aggregate_seed_summaries(summaries)
+    aggregate["seed_summaries"] = [
+        str(
+            Path(summary_json).with_name(
+                f"{Path(summary_json).stem}_seed{seed}{Path(summary_json).suffix}"
+            )
+        )
+        for seed in seeds
+    ]
+    aggregate["paired_feature_files"] = [
+        str(
+            Path(output_csv).with_name(
+                f"{Path(output_csv).stem}_seed{seed}{Path(output_csv).suffix}"
+            )
+        )
+        for seed in seeds
+    ]
+    summary_json.parent.mkdir(parents=True, exist_ok=True)
+    summary_json.write_text(
+        json.dumps(aggregate, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return aggregate
+
+
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
@@ -454,7 +582,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Compare dry and known-RIR audio features, then measure "
-            "source-disjoint simulated room-type recognition."
+            "source- and room-disjoint simulated room-type recognition."
         )
     )
     parser.add_argument(
@@ -484,26 +612,58 @@ def main() -> int:
     )
     parser.add_argument("--samples-per-label", type=_positive_int, default=20)
     parser.add_argument("--rirs-per-room-type", type=_positive_int, default=4)
-    parser.add_argument("--seed", type=int, default=42)
+    seed_options = parser.add_mutually_exclusive_group()
+    seed_options.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Run one deterministic experiment.",
+    )
+    seed_options.add_argument(
+        "--seeds",
+        type=int,
+        nargs="+",
+        help="Run multiple independent experiments and aggregate their accuracy.",
+    )
     args = parser.parse_args()
 
-    summary = validate_rir_effects(
-        args.manifest,
-        args.dataset_root,
-        args.rir_root,
-        args.output_csv,
-        args.summary_json,
-        samples_per_label=args.samples_per_label,
-        rirs_per_room_type=args.rirs_per_room_type,
-        seed=args.seed,
-    )
-    print(f"Paired feature rows written to {args.output_csv}")
-    print(f"Experiment summary written to {args.summary_json}")
-    print(
-        "Room-type recognition accuracy: "
-        f"{summary['room_type_recognition']['accuracy']:.3f} "
-        f"(chance: {summary['room_type_recognition']['chance_accuracy']:.3f})"
-    )
+    if args.seeds is not None:
+        summary = validate_multiple_seeds(
+            args.manifest,
+            args.dataset_root,
+            args.rir_root,
+            args.output_csv,
+            args.summary_json,
+            args.seeds,
+            samples_per_label=args.samples_per_label,
+            rirs_per_room_type=args.rirs_per_room_type,
+        )
+        print(f"Aggregate summary written to {args.summary_json}")
+        print(
+            f"Mean room-type accuracy: {summary['accuracy_mean']:.3f} "
+            f"+/- {summary['accuracy_population_std']:.3f} "
+            f"(range {summary['accuracy_min']:.3f}-"
+            f"{summary['accuracy_max']:.3f}; "
+            f"chance {summary['chance_accuracy']:.3f})"
+        )
+    else:
+        summary = validate_rir_effects(
+            args.manifest,
+            args.dataset_root,
+            args.rir_root,
+            args.output_csv,
+            args.summary_json,
+            samples_per_label=args.samples_per_label,
+            rirs_per_room_type=args.rirs_per_room_type,
+            seed=args.seed,
+        )
+        print(f"Paired feature rows written to {args.output_csv}")
+        print(f"Experiment summary written to {args.summary_json}")
+        print(
+            "Room-type recognition accuracy: "
+            f"{summary['room_type_recognition']['accuracy']:.3f} "
+            f"(chance: {summary['room_type_recognition']['chance_accuracy']:.3f})"
+        )
     return 0
 
 

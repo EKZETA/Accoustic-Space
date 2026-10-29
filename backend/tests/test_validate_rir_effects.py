@@ -7,10 +7,52 @@ from pathlib import Path
 import numpy as np
 from scipy.io import wavfile
 
-from scripts.validate_rir_effects import validate_rir_effects
+from scripts.validate_rir_effects import (
+    aggregate_seed_summaries,
+    validate_rir_effects,
+)
 
 
 class RIRValidationTests(unittest.TestCase):
+    def test_aggregates_accuracy_and_variance_across_seeds(self) -> None:
+        summaries = [
+            {
+                "seed": seed,
+                "samples_per_label": 100,
+                "rirs_per_room_type": 20,
+                "room_type_recognition": {
+                    "accuracy": accuracy,
+                    "chance_accuracy": 1 / 3,
+                    "test_pairs": 750,
+                    "confusion_matrix": {
+                        "smallroom": {},
+                        "mediumroom": {},
+                        "largeroom": {},
+                    },
+                },
+            }
+            for seed, accuracy in ((42, 0.7), (43, 0.8), (44, 0.9))
+        ]
+
+        aggregate = aggregate_seed_summaries(summaries)
+
+        self.assertEqual(aggregate["run_count"], 3)
+        self.assertAlmostEqual(aggregate["accuracy_mean"], 0.8)
+        self.assertAlmostEqual(
+            aggregate["accuracy_population_std"],
+            np.std([0.7, 0.8, 0.9]),
+        )
+        self.assertEqual(aggregate["accuracy_min"], 0.7)
+        self.assertEqual(aggregate["accuracy_max"], 0.9)
+        self.assertEqual(
+            [run["seed"] for run in aggregate["runs"]],
+            [42, 43, 44],
+        )
+
+    def test_requires_multiple_runs_for_seed_aggregation(self) -> None:
+        with self.assertRaisesRegex(ValueError, "(?i)at least two"):
+            aggregate_seed_summaries([])
+
     def test_runs_source_disjoint_paired_rir_validation(self) -> None:
         sample_rate = 16_000
         time = np.arange(sample_rate // 4, dtype=np.float32) / sample_rate

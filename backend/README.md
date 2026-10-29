@@ -86,6 +86,25 @@ whether room-size groups can be distinguished in this controlled dataset. It
 does not isolate an RIR from arbitrary speech recordings or establish
 real-world room recognition.
 
+To measure variability across independent samples and room-disjoint splits,
+run at least two distinct seeds. Each run writes separate paired CSV and
+per-seed JSON files; the requested summary path contains aggregate mean,
+population standard deviation, minimum, and maximum accuracy:
+
+```powershell
+python backend/scripts/validate_rir_effects.py `
+  --samples-per-label 100 `
+  --rirs-per-room-type 20 `
+  --seeds 42 43 44 `
+  --output-csv backend/data/rir_validation_pairs_100x20.csv `
+  --summary-json backend/data/rir_validation_multiseed_100x20.json
+```
+
+Different seeds select different source recordings, RIRs, and held-out groups,
+so each seed repeats feature extraction. Aggregate accuracy describes
+variation across these runs, not a confidence interval or a real-world
+performance guarantee.
+
 ## Train and evaluate the Week 2 CNN baseline
 
 Install the updated backend requirements, prepare a class-balanced sample, then
