@@ -136,39 +136,6 @@ report the held-out `eval` metrics after the model and hyperparameters have
 been selected using `dev`. The current API still reports acoustic features
 only and does not serve model predictions.
 
-To evaluate the saved checkpoint on the complete official ASVspoof evaluation
-split without retraining, first extract features for that split, then run the
-streaming evaluator:
-
-```powershell
-python backend/scripts/prepare_data.py `
-  --split eval `
-  --output backend/data/rir_extracted_features_eval_full.csv
-python backend/scripts/evaluate_baseline_cnn.py `
-  --features backend/data/rir_extracted_features_eval_full.csv `
-  --model backend/data/models/rir_baseline_cnn_balanced_1000_seed42.pt `
-  --output backend/data/models/rir_baseline_cnn_eval_full_metrics.json `
-  --split eval `
-  --batch-size 64
-```
-
-The evaluator processes spectrograms in batches and does not retrain or modify
-the checkpoint. The full official split is naturally imbalanced; report
-balanced accuracy and per-class metrics alongside accuracy. As with the
-baseline experiment, this evaluation uses features after applying the selected
-simulated RIR and does not establish performance on unmodified real-world
-recordings.
-
-Full-split evaluation of the balanced-1,000-per-class baseline checkpoint
-processed all 71,237 official eval recordings. It achieved 85.32% accuracy and
-90.76% balanced accuracy. Bonafide precision/recall/F1 were 41.12%/97.61%/57.86%;
-spoof precision/recall/F1 were 99.67%/83.91%/91.11%. The confusion matrix, with
-actual labels as rows (`bonafide`, `spoof`) and predictions as columns, was
-`[[7179, 176], [10279, 53603]]`. The low bonafide precision reflects the
-official eval split's strong spoof-class imbalance and should be considered
-before interpreting accuracy alone. The detailed report is saved to
-`backend/data/models/rir_baseline_cnn_eval_full_metrics.json`.
-
 Run the backend unit tests from the `backend` directory:
 
 ```powershell
