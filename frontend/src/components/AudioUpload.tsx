@@ -23,12 +23,12 @@ export function AudioUpload({ onAnalysisComplete }: AudioUploadProps) {
 
     if (!SUPPORTED_EXTENSIONS.includes(extension)) {
       setSelectedFile(null)
-      setError('Pilih file WAV, MP3, atau FLAC.')
+      setError('Please choose a WAV, MP3, or FLAC file.')
       return
     }
     if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(null)
-      setError('Ukuran file maksimum adalah 25 MB.')
+      setError('The maximum file size is 25 MB.')
       return
     }
 
@@ -52,7 +52,7 @@ export function AudioUpload({ onAnalysisComplete }: AudioUploadProps) {
       const payload = await response.json()
 
       if (!response.ok) {
-        throw new Error(payload.detail ?? 'Audio gagal diproses.')
+        throw new Error(payload.detail ?? 'The audio file could not be processed.')
       }
 
       onAnalysisComplete(payload.filename, payload.data as AnalysisData)
@@ -60,7 +60,7 @@ export function AudioUpload({ onAnalysisComplete }: AudioUploadProps) {
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : 'Tidak dapat menghubungi AcousticSpace API.',
+          : 'Could not connect to the AcousticSpace API.',
       )
     } finally {
       setLoading(false)
