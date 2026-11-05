@@ -28,6 +28,7 @@ The decay value is only an exploratory energy-envelope proxy, not a measured
 room impulse response.
 
 The Week 2 dashboard renders the returned waveform alongside the mel
-spectrogram after audio feature extraction.
+spectrogram after audio feature extraction. The selected WAV, MP3, or FLAC file
+can also be played from the audio preview controls before feature extraction.
 
 Run `npm run lint` and `npm run build` to check the frontend.

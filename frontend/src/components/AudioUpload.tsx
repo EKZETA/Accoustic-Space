@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, AudioLines, FileAudio, LoaderCircle, Upload } from 'lucide-react'
 import type { AnalysisData } from '../types'
 
@@ -12,27 +12,42 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 export function AudioUpload({ onAnalysisComplete }: AudioUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const previewUrlRef = useRef<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    }
+  }, [])
+
+  const updateSelectedFile = (file: File | null) => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    previewUrlRef.current = file ? URL.createObjectURL(file) : null
+    setPreviewUrl(previewUrlRef.current)
+    setSelectedFile(file)
+  }
 
   const chooseFile = (file?: File) => {
     if (!file) return
     const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
 
     if (!SUPPORTED_EXTENSIONS.includes(extension)) {
-      setSelectedFile(null)
+      updateSelectedFile(null)
       setError('Please choose a WAV, MP3, or FLAC file.')
       return
     }
     if (file.size > MAX_FILE_SIZE) {
-      setSelectedFile(null)
+      updateSelectedFile(null)
       setError('The maximum file size is 25 MB.')
       return
     }
 
-    setSelectedFile(file)
+    updateSelectedFile(file)
     setError(null)
   }
 
@@ -130,6 +145,20 @@ export function AudioUpload({ onAnalysisComplete }: AudioUploadProps) {
           {selectedFile ? 'Choose another file' : 'Browse files'}
         </button>
       </div>
+
+      {previewUrl && selectedFile && (
+        <div className="audio-preview">
+          <span className="eyebrow">AUDIO PREVIEW</span>
+          <audio
+            controls
+            preload="metadata"
+            src={previewUrl}
+            aria-label={`Preview ${selectedFile.name}`}
+          >
+            Your browser does not support audio playback.
+          </audio>
+        </div>
+      )}
 
       {error && (
         <p className="upload-error" role="alert">
