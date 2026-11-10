@@ -10,13 +10,17 @@ class AudioProcessor:
     def __init__(self, target_sr: int = 16_000) -> None:
         self.target_sr = target_sr
 
-    def extract_features(self, file_path: str) -> dict[str, Any]:
-        """Extract a compact mel spectrogram and descriptive acoustic features."""
-        audio, sample_rate = librosa.load(
+    def load_audio(self, file_path: str) -> tuple[np.ndarray, int]:
+        """Decode audio once for feature extraction and optional model inference."""
+        return librosa.load(
             file_path,
             sr=self.target_sr,
             mono=True,
         )
+
+    def extract_features(self, file_path: str) -> dict[str, Any]:
+        """Extract a compact mel spectrogram and descriptive acoustic features."""
+        audio, sample_rate = self.load_audio(file_path)
         return self.extract_features_from_audio(audio, sample_rate)
 
     def extract_features_from_audio(

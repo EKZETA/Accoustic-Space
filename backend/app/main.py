@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.services.ast_classifier import ASTClassifier
 from app.services.audio_processor import AudioProcessor
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 SUPPORTED_EXTENSIONS = {".wav", ".mp3", ".flac"}
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 processor = AudioProcessor(target_sr=16_000)
+classifier = ASTClassifier(os.getenv("ACOUSTICSPACE_AST_MODEL_DIR"))
 
 
 @app.get("/")
@@ -73,7 +75,11 @@ async def process_audio_endpoint(file: UploadFile = File(...)) -> dict[str, obje
                     )
                 temporary_file.write(chunk)
 
-        features = processor.extract_features(temporary_path)
+        audio, sample_rate = processor.load_audio(temporary_path)
+        features = processor.extract_features_from_audio(audio, sample_rate)
+        classification = classifier.predict(audio, sample_rate)
+        if classification is not None:
+            features["classification"] = classification
         return {
             "filename": filename,
             "status": "success",
