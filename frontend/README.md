@@ -31,4 +31,9 @@ The Week 2 dashboard renders the returned waveform alongside the mel
 spectrogram after audio feature extraction. The selected WAV, MP3, or FLAC file
 can also be played from the audio preview controls before feature extraction.
 
+The Week 3 results panel shows AST probabilities only when the API has an AST
+checkpoint configured. Otherwise, it clearly reports that model inference is
+unavailable. The activity timeline is based on energy thresholds and does not
+detect breathing or syllables.
+
 Run `npm run lint` and `npm run build` to check the frontend.

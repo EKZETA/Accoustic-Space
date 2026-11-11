@@ -462,6 +462,142 @@
   padding-bottom: 15px;
 }
 
+.results-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.classification-result,
+.temporal-summary {
+  padding: 13px;
+  border: 1px solid #202d31;
+  border-radius: 8px;
+  background: #0d1418;
+}
+
+.classification-heading,
+.temporal-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #85d8cb;
+  font-size: 10px;
+}
+
+.classification-heading span {
+  color: #8d9b9e;
+}
+
+.prediction-row,
+.confidence-label,
+.temporal-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #829094;
+  font-size: 10px;
+}
+
+.prediction-row {
+  margin-top: 15px;
+}
+
+.prediction-row strong {
+  color: #e2eeee;
+  font-size: 15px;
+  text-transform: capitalize;
+}
+
+.confidence-label {
+  margin-top: 12px;
+  font-size: 9px;
+}
+
+.confidence-label strong {
+  color: #c4d2d3;
+}
+
+.confidence-track,
+.activity-timeline {
+  position: relative;
+  overflow: hidden;
+  height: 7px;
+  margin-top: 7px;
+  border-radius: 5px;
+  background: #202b2f;
+}
+
+.confidence-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #66cbbb;
+}
+
+.result-disclaimer,
+.model-unavailable {
+  margin-top: 10px;
+  color: #748286;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.model-unavailable {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed #354347;
+  border-radius: 7px;
+}
+
+.model-unavailable code {
+  color: #9bd6ce;
+}
+
+.temporal-heading {
+  color: #c8d6d6;
+}
+
+.temporal-stats {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 12px;
+}
+
+.temporal-stats strong {
+  color: #e0eeee;
+  font-weight: 600;
+}
+
+.activity-timeline {
+  height: 14px;
+  margin-top: 12px;
+  background: repeating-linear-gradient(
+    90deg,
+    #162024,
+    #162024 9px,
+    #1d292d 10px
+  );
+}
+
+.activity-timeline-segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  min-width: 1px;
+  border-radius: 3px;
+  background: #69d3c3;
+}
+
+.timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  color: #68777b;
+  font-size: 8px;
+}
+
 .waveform-panel {
   min-height: 190px;
 }

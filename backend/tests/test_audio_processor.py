@@ -48,6 +48,22 @@ class AudioProcessorTests(unittest.TestCase):
             np.isfinite(result["acoustic_features"]["mean_spectral_centroid_hz"])
         )
         self.assertIn("not an isolated room impulse response", result["interpretation"])
+        self.assertIn("does not detect breathing", result["temporal_analysis"]["interpretation"])
+
+    def test_temporal_analysis_reports_activity_and_quiet_intervals(self) -> None:
+        sample_rate = 16_000
+        silence = np.zeros(sample_rate, dtype=np.float32)
+        time = np.arange(sample_rate // 2, dtype=np.float32) / sample_rate
+        tone = (0.2 * np.sin(2 * np.pi * 440 * time)).astype(np.float32)
+        audio = np.concatenate((silence, tone, silence))
+
+        result = AudioProcessor().extract_features_from_audio(audio, sample_rate)
+        temporal = result["temporal_analysis"]
+
+        self.assertGreaterEqual(temporal["activity_segment_count"], 1)
+        self.assertGreaterEqual(temporal["pause_segment_count"], 2)
+        self.assertGreater(temporal["mean_pause_seconds"], 0.4)
+        self.assertGreater(temporal["activity_ratio"], 0.2)
 
 
 if __name__ == "__main__":

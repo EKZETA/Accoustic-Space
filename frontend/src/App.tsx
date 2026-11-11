@@ -12,6 +12,7 @@ import {
   Waves,
 } from 'lucide-react'
 import { AudioUpload } from './components/AudioUpload'
+import { AnalysisResults } from './components/AnalysisResults'
 import type { AnalysisData } from './types'
 import './App.css'
 
@@ -188,6 +189,8 @@ export default function App() {
                   setAnalysis({ filename, data })
                 }
               />
+
+              {analysis && <AnalysisResults data={analysis.data} />}
 
               <section className="panel waveform-panel" aria-labelledby="waveform-title">
                 <div className="section-heading">

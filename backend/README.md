@@ -136,6 +136,10 @@ report the held-out `eval` metrics after the model and hyperparameters have
 been selected using `dev`. The current API still reports acoustic features
 only and does not serve model predictions.
 
+Temporal activity intervals use an energy threshold to summarize activity and
+quiet gaps. They do not identify breaths, syllables, or speech classes; use
+them only as exploratory timing indicators.
+
 Run the backend unit tests from the `backend` directory:
 
 ```powershell
