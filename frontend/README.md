@@ -36,4 +36,7 @@ checkpoint configured. Otherwise, it clearly reports that model inference is
 unavailable. The activity timeline is based on energy thresholds and does not
 detect breathing or syllables.
 
+Analysis history is stored in this browser's local storage; it stores extracted
+results, not uploaded audio.
+
 Run `npm run lint` and `npm run build` to check the frontend.

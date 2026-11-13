@@ -11,8 +11,15 @@ import {
   ScanLine,
   Waves,
 } from 'lucide-react'
-import { AudioUpload } from './components/AudioUpload'
 import { AnalysisResults } from './components/AnalysisResults'
+import { AudioUpload } from './components/AudioUpload'
+import { HistoryPanel } from './components/HistoryPanel'
+import {
+  loadAnalysisHistory,
+  MAX_HISTORY_ENTRIES,
+  saveAnalysisHistory,
+  type AnalysisHistoryEntry,
+} from './utils/analysisHistory'
 import type { AnalysisData } from './types'
 import './App.css'
 
@@ -112,8 +119,31 @@ function Waveform({ values }: { values: [number, number][] }) {
 
 export default function App() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
+  const [initialHistory] = useState(loadAnalysisHistory)
+  const [history, setHistory] = useState(initialHistory.entries)
+  const [historyError, setHistoryError] = useState(initialHistory.error)
+  const skipFirstHistorySave = useRef(true)
   const features = analysis?.data.acoustic_features
   const metadata = analysis?.data.metadata
+
+  useEffect(() => {
+    if (skipFirstHistorySave.current) {
+      skipFirstHistorySave.current = false
+      return
+    }
+    setHistoryError(saveAnalysisHistory(history))
+  }, [history])
+
+  const handleAnalysisComplete = (filename: string, data: AnalysisData) => {
+    setAnalysis({ filename, data })
+    const entry: AnalysisHistoryEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      filename,
+      analyzedAt: new Date().toISOString(),
+      data,
+    }
+    setHistory((entries) => [entry, ...entries].slice(0, MAX_HISTORY_ENTRIES))
+  }
 
   return (
     <div className="app-shell">
@@ -185,9 +215,7 @@ export default function App() {
           <div className="dashboard-grid">
             <div className="primary-column">
               <AudioUpload
-                onAnalysisComplete={(filename, data) =>
-                  setAnalysis({ filename, data })
-                }
+                onAnalysisComplete={handleAnalysisComplete}
               />
 
               {analysis && <AnalysisResults data={analysis.data} />}
@@ -339,6 +367,17 @@ export default function App() {
                   Temporary upload is deleted after processing.
                 </div>
               </section>
+
+              <HistoryPanel
+                entries={history}
+                error={historyError}
+                onSelect={(entry) =>
+                  setAnalysis({ filename: entry.filename, data: entry.data })
+                }
+                onDelete={(id) =>
+                  setHistory((entries) => entries.filter((entry) => entry.id !== id))
+                }
+              />
 
               <section id="dataset" className="panel dataset-panel">
                 <span className="eyebrow">DATA PREPARATION</span>
