@@ -140,6 +140,20 @@ Temporal activity intervals use an energy threshold to summarize activity and
 quiet gaps. They do not identify breaths, syllables, or speech classes; use
 them only as exploratory timing indicators.
 
+## Run the API in Docker
+
+Build and run the backend from the repository root:
+
+```powershell
+docker build -f backend/Dockerfile -t acousticspace-api .
+docker run --rm -p 8000:8000 acousticspace-api
+```
+
+For AST inference, build with `--build-arg INSTALL_AST=true`, mount the saved
+model directory, and set `ACOUSTICSPACE_AST_MODEL_DIR` to its container path.
+The image runs as a non-root user and does not include local datasets or model
+artifacts.
+
 Run the backend unit tests from the `backend` directory:
 
 ```powershell

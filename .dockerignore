@@ -1,0 +1,15 @@
+.git
+.github
+.vscode
+node_modules
+frontend
+backend/data
+backend/uploads
+backend/venv
+backend/env
+venv
+env
+__pycache__
+*.py[cod]
+*.pt
+*.csv
