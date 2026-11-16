@@ -134,7 +134,34 @@ training with `--batch-size`, `--learning-rate`, and `--seed`.
 This is an experimental baseline, not a validated deepfake detector. Only
 report the held-out `eval` metrics after the model and hyperparameters have
 been selected using `dev`. The current API still reports acoustic features
-only and does not serve model predictions.
+and only returns a model prediction when an AST checkpoint is configured.
+
+## Fine-tune the Week 3 Hugging Face AST
+
+Install the optional transformer dependencies, ensure the ASVspoof audio files
+and manifest are available, and train from the repository root:
+
+```powershell
+python -m pip install -r backend/requirements-ast.txt
+python backend/scripts/train_ast.py `
+  --manifest backend/data/manifests/asvspoof2019_la.csv `
+  --dataset-root backend/data/asvspoof/LA/LA `
+  --output backend/data/models/ast_asvspoof `
+  --epochs 5
+```
+
+The script fine-tunes `MIT/ast-finetuned-audioset-10-10-0.4593` by default.
+It trains on `train`, selects the checkpoint using `dev` loss, and evaluates
+the selected checkpoint once on `eval`. The model, feature extractor, and
+metrics are written to the output directory. Model downloads and full-dataset
+training require network access, substantial storage, and preferably a GPU.
+These results are experimental and are not a real-world performance guarantee.
+
+To enable predictions in the API, set `ACOUSTICSPACE_AST_MODEL_DIR` to the
+saved model directory before starting the server. If unset, the API provides
+feature and temporal analysis without a model prediction. Predictions average
+AST logits over consecutive 10-second chunks for longer uploads. The displayed
+class probability is not calibrated certainty.
 
 Temporal activity intervals use an energy threshold to summarize activity and
 quiet gaps. They do not identify breaths, syllables, or speech classes; use
